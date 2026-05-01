@@ -15,6 +15,7 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Créer un nouveau compte' })
   @ApiResponse({ status: 201, description: 'Utilisateur créé avec succès' })
+  @ApiResponse({ status: 400, description: 'Mauvaise requête (ex: mots de passe ne correspondent pas)' })
   async register(@Body() dto: CreateAuthDto) {
     return this.authService.register(dto);
 
@@ -64,6 +65,7 @@ export class AuthController {
   @Post('reset-password')
   @ApiOperation({ summary: 'Réinitialiser via email (oubli)' })
   async reset(@Body() dto: ResetPasswordDto) {
+    console.log('Données reçues dans le controller:', dto);
     return await this.authService.resetPassword(dto);
   }
 

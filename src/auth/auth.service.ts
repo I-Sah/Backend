@@ -38,6 +38,7 @@ export class AuthService {
 
     const hash = await this.hashData(dto.password);
     const newUser = await this.userRepository.save({
+      pseudo: dto.pseudo,
       email: dto.email,
       password: hash,
   });
@@ -69,24 +70,30 @@ async getTokens(userId: number, email: string, role: string) {
 }
 
   async resetPassword(dto: ResetPasswordDto) {
-    const { email, newPassword, confirmPassword } = dto;
+  console.log('DTO reçu par le service:', dto);
 
-  // Si confirmPassword est undefined à cause du DTO, ceci échouera
-    if (newPassword !== confirmPassword) {
-      throw new BadRequestException('Les mots de passe ne correspondent pas');
-    }
-
-    const user = await this.userRepository.findOne({ where: { email } });
-    if (!user) {
-      throw new BadRequestException('Utilisateur non trouvé');
-    }
-
-    user.password = await this.hashData(newPassword);
-    user.refreshToken = null; 
-
-    await this.userRepository.save(user);
-    return { message: 'Réinitialisation réussie' };
+  // Si dto est undefined ou vide, c'est un problème de configuration NestJS ou Postman
+  if (!dto || !dto.email || !dto.newPassword) {
+    throw new BadRequestException('Email et nouveau mot de passe requis');
   }
+
+  const { email, newPassword, confirmPassword } = dto;
+
+  if (newPassword !== confirmPassword) {
+    throw new BadRequestException('La confirmation ne correspond pas');
+  }
+
+  const user = await this.userRepository.findOne({ where: { email } });
+  
+  if (!user) {
+    throw new BadRequestException('Cet email n’existe pas dans notre base');
+  }
+
+  user.password = await this.hashData(newPassword);
+  await this.userRepository.save(user);
+
+  return { message: 'Succès' };
+}
 
   async changePassword(userId: number, dto: ChangePasswordDto) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
