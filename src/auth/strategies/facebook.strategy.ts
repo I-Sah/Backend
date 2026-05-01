@@ -6,11 +6,11 @@ import { Strategy } from 'passport-facebook';
 export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
   constructor() {
     super({
-      // clientID: process.env.FACEBOOK_APP_ID,
-      // clientSecret: process.env.FACEBOOK_SECRET,
-      // callbackURL: 'http://localhost:5003/auth/facebook/callback',
-      // scope: 'email',
-      // profileFields: ['emails', 'name'],
+      clientID: process.env.FACEBOOK_APP_ID,
+      clientSecret: process.env.FACEBOOK_SECRET,
+      callbackURL: process.env.FACEBOOK_CALLBACK_URL || 'http://localhost:5003/auth/facebook/callback',
+      scope: 'email',
+      profileFields: ['emails', 'name'],
     });
   }
 
