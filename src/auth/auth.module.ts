@@ -12,6 +12,13 @@ import { User } from '../user/entities/user.entity';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
 
+const authProviders = [
+  AuthService,
+  JwtStrategy,
+  ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_SECRET ? [GoogleStrategy] : []),
+  ...(process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_SECRET ? [FacebookStrategy] : []),
+];
+
 @Module({
   imports: [
     UserModule,
@@ -23,13 +30,6 @@ import { FacebookStrategy } from './strategies/facebook.strategy';
     TypeOrmModule.forFeature([User])
   ],
   controllers: [AuthController],
-  providers: 
-  [
-    AuthService, 
-    JwtStrategy,
-    GoogleStrategy,
-    FacebookStrategy
-  
-  ],
+  providers: authProviders,
 })
 export class AuthModule {}

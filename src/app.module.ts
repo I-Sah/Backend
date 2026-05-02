@@ -12,6 +12,7 @@ import { User } from './user/entities/user.entity';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
+        url: configService.get<string>('DATABASE_URL'),
         type: 'postgres',
         host: configService.get<string>('POSTGRES_HOST'),
         port: configService.get<number>('POSTGRES_PORT'),
