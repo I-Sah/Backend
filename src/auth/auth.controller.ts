@@ -62,7 +62,7 @@ export class AuthController {
     return req.user;
   }
 
-  @Post('reset-password')
+  @Post('forgot-password')
   @ApiOperation({ summary: 'Réinitialiser via email (oubli)' })
   async reset(@Body() dto: ResetPasswordDto) {
     console.log('Données reçues dans le controller:', dto);
@@ -75,5 +75,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Changer le mot de passe (connecté)' })
   async change(@Req() req, @Body() dto: ChangePasswordDto) {
     return await this.authService.changePassword(req.user.sub, dto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Post('logout')
+  @ApiOperation({ summary: 'Déconnexion' })
+  async logout(@Req() req) {
+    return await this.authService.logout(req.user.userId);
   }
 }

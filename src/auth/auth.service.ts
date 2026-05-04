@@ -70,29 +70,27 @@ async getTokens(userId: number, email: string, role: string) {
 }
 
   async resetPassword(dto: ResetPasswordDto) {
-  console.log('DTO reçu par le service:', dto);
-
-  // Si dto est undefined ou vide, c'est un problème de configuration NestJS ou Postman
-  if (!dto || !dto.email || !dto.newPassword) {
-    throw new BadRequestException('Email et nouveau mot de passe requis');
-  }
 
   const { email, newPassword, confirmPassword } = dto;
+
+  if (!email || !newPassword) {
+    throw new BadRequestException('Email et mot de passe requis');
+  }
 
   if (newPassword !== confirmPassword) {
     throw new BadRequestException('La confirmation ne correspond pas');
   }
 
   const user = await this.userRepository.findOne({ where: { email } });
-  
+
   if (!user) {
-    throw new BadRequestException('Cet email n’existe pas dans notre base');
+    throw new BadRequestException('Email introuvable');
   }
 
   user.password = await this.hashData(newPassword);
   await this.userRepository.save(user);
 
-  return { message: 'Succès' };
+  return { message: 'Mot de passe modifié avec succès' };
 }
 
   async changePassword(userId: number, dto: ChangePasswordDto) {
@@ -112,5 +110,13 @@ async getTokens(userId: number, email: string, role: string) {
     await this.userRepository.save(user);
 
     return { message: 'Modification réussie' };
+  }
+
+  async logout(userId: number) {
+    if (!userId) {
+      throw new UnauthorizedException('User ID manquant');
+    }
+    await this.userRepository.update({ id: userId }, { refreshToken: null });
+    return { message: 'Déconnexion réussie' };
   }
 }
