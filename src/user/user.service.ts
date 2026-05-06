@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
@@ -30,9 +30,19 @@ export class UserService {
   return this.userRepository.save(data);
 }
 
-  findAll() {
+  async findAll(search?: string) {
+  // Si search est vide, undefined ou null, on retourne tout
+  if (!search) {
     return this.userRepository.find();
   }
+
+  return this.userRepository.find({
+    where: [
+      { pseudo: Like(`%${search}%`) },
+      { email: Like(`%${search}%`) }
+    ]
+  });
+}
   
   findOne(id: number) {
     return this.userRepository.findOne({ where: { id } });

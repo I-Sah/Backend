@@ -11,10 +11,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../user/entities/user.entity';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
+import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 
 const authProviders = [
   AuthService,
   JwtStrategy,
+  JwtRefreshStrategy,
   ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_SECRET ? [GoogleStrategy] : []),
   ...(process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_SECRET ? [FacebookStrategy] : []),
 ];

@@ -28,11 +28,15 @@ export class AuthController {
     return this.authService.login(dto); 
   }
 
-  @Post('refresh')
   @UseGuards(AuthGuard('jwt-refresh'))
-  @ApiOperation({ summary: 'Renouveler l access token' })
-  @ApiResponse({ status: 200, description: 'Tokens renouvelés avec succès' })
-  async refresh() { /* Logique refresh */ }
+  @Post('refresh')
+  async refresh(@Req() req) {
+    console.log('USER:', req.user); 
+    const userId = req.user.sub;
+    const refreshToken = req.headers.authorization?.split(' ')[1];
+
+    return this.authService.refreshTokens(userId, refreshToken);
+  }
 
   @Get('google')
   @UseGuards(AuthGuard('google'))
@@ -43,8 +47,7 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleAuthRedirect(@Req() req) {
-    // req.user contient les infos de Google grâce à la stratégie
-    return this.authService.getTokens(req.user.id, req.user.email, 'user');
+    return this.authService.getTokens(req.user.id, req.user.pseudo, req.user.email, 'user');
 }
 
   @Get('facebook')
@@ -63,7 +66,7 @@ export class AuthController {
   }
 
   @Post('forgot-password')
-  @ApiOperation({ summary: 'Réinitialiser via email (oubli)' })
+  @ApiOperation({ summary: 'Mot de passe oublier' })
   async reset(@Body() dto: ResetPasswordDto) {
     console.log('Données reçues dans le controller:', dto);
     return await this.authService.resetPassword(dto);

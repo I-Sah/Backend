@@ -42,30 +42,50 @@ export class AuthService {
       email: dto.email,
       password: hash,
   });
-    return this.getTokens(newUser.id, newUser.email, 'user');
+    return this.getTokens(newUser.id, newUser.pseudo, newUser.email, 'user');
 }
 
-async login(dto: LoginDto) {
+  async login(dto: LoginDto) {
   const user = await this.userRepository.findOne({ where: { email: dto.email } });
   if (!user) throw new BadRequestException('Identifiants invalides');
 
   const passwordMatches = await bcrypt.compare(dto.password, user.password);
   if (!passwordMatches) throw new BadRequestException('Identifiants invalides');
 
-  return this.getTokens(user.id, user.email, user.role);
+  return this.getTokens(user.id, user.pseudo, user.email, user.role);
 }
 
-async getTokens(userId: number, email: string, role: string) {
+  async refreshTokens(userId: number, refreshToken: string) {
+  const user = await this.userRepository.findOne({ where: { id: userId } });
+
+  // On vérifie si l'utilisateur existe et s'il possède un token en base
+  if (!user || !user.refreshToken) {
+    throw new UnauthorizedException('Accès refusé');
+  }
+
+  // On compare le token envoyé avec le hash en base
+  const rtMatches = await bcrypt.compare(refreshToken, user.refreshToken);
+  if (!rtMatches) {
+    throw new UnauthorizedException('Token invalide');
+  }
+
+  // On génère de nouveaux tokens
+  return this.getTokens(user.id, user.pseudo, user.email, user.role);
+}
+
+  async getTokens(userId: number,pseudo: string, email: string, role: string) {
   const [at, rt] = await Promise.all([
     this.jwtService.signAsync(
-      { sub: userId, email, role }, 
+      { sub: userId, pseudo, email, role }, 
       { expiresIn: '15m', secret: process.env.JWT_SECRET || 'secret' } 
     ),
     this.jwtService.signAsync(
-      { sub: userId, email, role }, 
+      { sub: userId, pseudo, email, role }, 
       { expiresIn: '7d', secret: process.env.JWT_REFRESH_SECRET || 'refreshsecret' }
     ),
   ]);
+  const hashedRt = await this.hashData(rt);
+  await this.userRepository.update(userId, { refreshToken: hashedRt });
   return { access_token: at, refresh_token: rt };
 }
 
