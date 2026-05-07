@@ -27,7 +27,8 @@ export class AuthController {
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto); 
   }
-
+  
+  @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt-refresh'))
   @Post('refresh')
   async refresh(@Req() req) {
