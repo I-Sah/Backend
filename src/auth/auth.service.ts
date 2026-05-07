@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LoginDto } from './dto/login.dto';
@@ -46,72 +46,70 @@ export class AuthService {
 }
 
   async login(dto: LoginDto) {
-  const user = await this.userRepository.findOne({ where: { email: dto.email } });
-  if (!user) throw new BadRequestException('Identifiants invalides');
+    const user = await this.userRepository.findOne({ where: { email: dto.email } });
+    if (!user) throw new BadRequestException('Identifiants invalides');
 
-  const passwordMatches = await bcrypt.compare(dto.password, user.password);
-  if (!passwordMatches) throw new BadRequestException('Identifiants invalides');
+    const passwordMatches = await bcrypt.compare(dto.password, user.password);
+    if (!passwordMatches) throw new BadRequestException('Identifiants invalides');
 
-  return this.getTokens(user.id, user.pseudo, user.email, user.role);
-}
+    return this.getTokens(user.id, user.pseudo, user.email, user.role);
+  }
 
   async refreshTokens(userId: number, refreshToken: string) {
-  const user = await this.userRepository.findOne({ where: { id: userId } });
+    const user = await this.userRepository.findOne({ where: { id: userId } });
 
-  // On vérifie si l'utilisateur existe et s'il possède un token en base
-  if (!user || !user.refreshToken) {
-    throw new UnauthorizedException('Accès refusé');
+    if (!user || !user.refreshToken) {
+      throw new UnauthorizedException('Accès refusé');
+    }
+
+    // On compare le token envoyé avec le hash en base
+    const rtMatches = await bcrypt.compare(refreshToken, user.refreshToken);
+    if (!rtMatches) {
+      throw new UnauthorizedException('Token invalide');
+    }
+
+    return this.getTokens(user.id, user.pseudo, user.email, user.role);
   }
-
-  // On compare le token envoyé avec le hash en base
-  const rtMatches = await bcrypt.compare(refreshToken, user.refreshToken);
-  if (!rtMatches) {
-    throw new UnauthorizedException('Token invalide');
-  }
-
-  // On génère de nouveaux tokens
-  return this.getTokens(user.id, user.pseudo, user.email, user.role);
-}
 
   async getTokens(userId: number,pseudo: string, email: string, role: string) {
-  const [at, rt] = await Promise.all([
-    this.jwtService.signAsync(
-      { sub: userId, pseudo, email, role }, 
-      { expiresIn: '15m', secret: process.env.JWT_SECRET || 'secret' } 
-    ),
-    this.jwtService.signAsync(
-      { sub: userId, pseudo, email, role }, 
-      { expiresIn: '7d', secret: process.env.JWT_REFRESH_SECRET || 'refreshsecret' }
-    ),
-  ]);
-  const hashedRt = await this.hashData(rt);
-  await this.userRepository.update(userId, { refreshToken: hashedRt });
-  return { access_token: at, refresh_token: rt };
-}
+    const [at, rt] = await Promise.all([
+      this.jwtService.signAsync(
+        { sub: userId, pseudo, email, role }, 
+        { expiresIn: '15m', secret: process.env.JWT_SECRET || 'secret' } 
+      ),
+      this.jwtService.signAsync(
+        { sub: userId, pseudo, email, role }, 
+        { expiresIn: '7d', secret: process.env.JWT_REFRESH_SECRET || 'refreshsecret' }
+      ),
+    ]);
+    const hashedRt = await this.hashData(rt);
+    await this.userRepository.update(userId, { refreshToken: hashedRt });
+    return { access_token: at, refresh_token: rt };
+  }
 
   async resetPassword(dto: ResetPasswordDto) {
 
-  const { email, newPassword, confirmPassword } = dto;
+    const { email, newPassword, confirmPassword } = dto;
 
-  if (!email || !newPassword) {
-    throw new BadRequestException('Email et mot de passe requis');
+    if (!email || !newPassword) {
+      throw new BadRequestException('Email et mot de passe requis');
+    }
+
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('La confirmation ne correspond pas');
+    }
+
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (!user) {
+      throw new BadRequestException('Email introuvable');
+    }
+
+    user.password = await this.hashData(newPassword);
+    await this.userRepository.save(user);
+
+    return { message: 'Mot de passe modifié avec succès' };
   }
-
-  if (newPassword !== confirmPassword) {
-    throw new BadRequestException('La confirmation ne correspond pas');
-  }
-
-  const user = await this.userRepository.findOne({ where: { email } });
-
-  if (!user) {
-    throw new BadRequestException('Email introuvable');
-  }
-
-  user.password = await this.hashData(newPassword);
-  await this.userRepository.save(user);
-
-  return { message: 'Mot de passe modifié avec succès' };
-}
 
   async changePassword(userId: number, dto: ChangePasswordDto) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -139,4 +137,17 @@ export class AuthService {
     await this.userRepository.update({ id: userId }, { refreshToken: null });
     return { message: 'Déconnexion réussie' };
   }
+
+
+  
+    async findExitUser(email: string) {
+      const user = await this.userRepository.find({
+        where: [
+          { email: Like(email) }
+        ]
+      });
+  
+  
+      return await user.length ? 'true' : 'false';
+    }
 }
