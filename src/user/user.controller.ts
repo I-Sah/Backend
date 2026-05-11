@@ -2,7 +2,6 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } f
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
-import { Auth } from '../auth/entities/auth.entity';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('user')
@@ -10,6 +9,7 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Créer un nouvel utilisateur (protégé par JWT)' })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @ApiResponse({ status: 201, description: 'Utilisateur créé avec succès' })
@@ -19,6 +19,7 @@ export class UserController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Récupérer tous les utilisateurs (protégé par JWT)' })
   @ApiResponse({ status: 200, description: 'Liste des utilisateurs récupérée avec succès' })
   @ApiResponse({ status: 401, description: 'Non autorisé (JWT manquant ou invalide)' })
   @ApiQuery({ name: 'search', required: false, description: 'Recherche par pseudo ou email' })
@@ -29,7 +30,7 @@ export class UserController {
   @Get(':id')
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'Récupérer tous les utilisateurs (protégé par JWT)' })
+  @ApiOperation({ summary: 'Récupérer un utilisateur par son ID' })
   @ApiResponse({ status: 200, description: 'Utilisateur trouvé' })
   @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
   async findOne(@Param('id') id: string) {
