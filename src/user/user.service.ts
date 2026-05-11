@@ -13,39 +13,37 @@ export class UserService {
   private userRepository: Repository<User>,
 ) {}
   
-  findByEmail(email: string) {
-    return this.userRepository.findOne({ where: { email } });
-  }
 
   async create(data: Partial<User>) {
-  const userExists = await this.userRepository.findOne({ 
-    where: { email: data.email } 
-  });
-  if (userExists) {
-    throw new BadRequestException('Un compte existe déjà avec cette adresse email');
+    const userExists = await this.userRepository.findOne({ 
+      where: { email: data.email } 
+    });
+    if (userExists) {
+      throw new BadRequestException('Un compte existe déjà avec cette adresse email');
+    }
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+    return this.userRepository.save(data);
   }
-  if (data.password) {
-    data.password = await bcrypt.hash(data.password, 10);
-  }
-  return this.userRepository.save(data);
-}
 
   async findAll(search?: string) {
   // Si search est vide, undefined ou null, on retourne tout
-  if (!search) {
-    return this.userRepository.find();
+    if (!search) {
+      return await this.userRepository.find();
+    }
+
+    return await this.userRepository.find({
+      where: [
+        { pseudo: Like(`%${search}%`) },
+        { email: Like(`%${search}%`) }
+      ]
+    });
   }
 
-  return this.userRepository.find({
-    where: [
-      { pseudo: Like(`%${search}%`) },
-      { email: Like(`%${search}%`) }
-    ]
-  });
-}
   
-  findOne(id: number) {
-    return this.userRepository.findOne({ where: { id } });
+  async findOne(id: number) {
+    return await this.userRepository.findOne({ where: { id } });
   }
   // user.service.ts
   async remove(id: number) {

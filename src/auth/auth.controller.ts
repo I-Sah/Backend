@@ -1,11 +1,14 @@
-import { Controller, Post, Body, UseGuards, Get, Req, Patch } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { Controller, Post, Body, UseGuards, Get, Req, Patch, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import { LoginDto } from './dto/login.dto';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { JwtAuthGuard } from '../guard/jwt-auth.guard';
+import { Public } from '../decorator/public.decorator';
+import { RefreshTokenGuard } from '../guard/refresh-token.guart';
 
 @ApiTags('Authentification')
 @Controller('auth')
@@ -27,14 +30,16 @@ export class AuthController {
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto); 
   }
-  
+
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt-refresh'))
+  @UseGuards(RefreshTokenGuard)
   @Post('refresh')
+  @ApiOperation({ summary: 'Rafraîchir les tokens' })
+  @ApiResponse({ status: 200, description: 'Tokens rafraîchis avec succès' })
+  @ApiResponse({ status: 401, description: 'Refresh token invalide ou manquant' })
   async refresh(@Req() req) {
-    console.log('USER:', req.user); 
     const userId = req.user.sub;
-    const refreshToken = req.headers.authorization?.split(' ')[1];
+    const refreshToken = req.user.refreshToken;
 
     return this.authService.refreshTokens(userId, refreshToken);
   }
@@ -48,17 +53,12 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleAuthRedirect(@Req() req) {
-    return this.authService.getTokens(req.user.id, req.user.pseudo, req.user.email, 'user');
-}
+      return this.authService.getTokens(req.user.id, req.user.pseudo, req.user.email, 'user');
+  }
 
-  @Get('facebook')
-  @UseGuards(AuthGuard('facebook'))
-  @ApiOperation({ summary: 'Connexion via Facebook' })
-  @ApiResponse({ status: 200, description: 'Connexion via Facebook réussie' })
-  async facebookAuth(@Req() req) {}
 
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(JwtAuthGuard)
   @Get('profile')
   @ApiOperation({ summary: 'Route protégée par JWT' })
   @ApiResponse({ status: 200, description: 'Profil utilisateur récupéré avec succès' })
@@ -73,8 +73,17 @@ export class AuthController {
     return await this.authService.resetPassword(dto);
   }
 
+  @Public()
+  @Get('/verification-account')
+  @ApiResponse({ status: 200, description: 'Liste des utilisateurs récupérée avec succès' })
+  @ApiResponse({ status: 401, description: 'Non autorisé (JWT manquant ou invalide)' })
+  @ApiQuery({ name: 'email', required: false, description: 'Recherche par pseudo ou email' })
+  async findExitUser(@Query('email') email: string) {
+    return this.authService.findExitUser(email);
+  }
+
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(JwtAuthGuard)
   @Patch('change-password')
   @ApiOperation({ summary: 'Changer le mot de passe (connecté)' })
   async change(@Req() req, @Body() dto: ChangePasswordDto) {
@@ -82,7 +91,7 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(JwtAuthGuard)
   @Post('logout')
   @ApiOperation({ summary: 'Déconnexion' })
   async logout(@Req() req) {
