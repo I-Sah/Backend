@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Get, Req, Patch, Query } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, Req, Patch, Query, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -52,10 +52,21 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req) {
-      return this.authService.getTokens(req.user.id, req.user.pseudo, req.user.email, 'user');
-  }
+  async googleAuthRedirect(@Req() req, @Res() res) {
+    const user = req.user;
 
+    const tokens = await this.authService.getTokens(
+      user.id,
+      user.pseudo,
+      user.email,
+      user.role || 'user',
+    );
+
+    //redirection frontend
+    return res.redirect(
+      `http://localhost:5003/api/docs/login-success?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}`
+    );
+  }
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)

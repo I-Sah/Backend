@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket Test</title>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+
+<h1>Socket Test</h1>
+
+<input id="username" placeholder="username">
+<input id="room" placeholder="room">
+<button onclick="connectSocket()">Connect</button>
+
+<hr>
+
+<input id="message" placeholder="message">
+<button onclick="sendMessage()">Send</button>
+
+<script>
+
+let socket;
+
+function connectSocket() {
+
+  const username = document.getElementById('username').value;
+  const room = document.getElementById('room').value;
+
+  socket = io("http://localhost:5000", {
+    transports: ["websocket"]
+  });
+
+  socket.on("connect", () => {
+
+    console.log("CONNECTED");
+    console.log(socket.id);
+
+    socket.emit("register", {
+      username,
+      room
+    });
+
+  });
+
+  socket.onAny((event, data) => {
+
+    console.log("EVENT:", event);
+    console.log("DATA:", data);
+
+  });
+
+  socket.on("notification:new", (notif) => {
+  console.log("🔔 NOTIF REÇUE :", notif.type, "-", notif.title, "-", notif.body);
+  });
+
+  socket.on("notifications:list", (list) => {
+    console.log("📋 Liste notifs :", list);
+  });
+
+}
+
+function sendMessage() {
+
+  const msg = document.getElementById('message').value;
+
+  socket.emit("chat", {
+    username: document.getElementById('username').value,
+    room: document.getElementById('room').value,
+    message: msg,
+  });
+
+  socket.on("chat", (data) => {
+  console.log("CHAT RECEIVED");
+  console.log(data);
+  });
+
+  socket.onAny((event, data) => {
+    console.log(event, data);
+  });
+  
+
+}
+
+</script>
+
+</body>
+</html>

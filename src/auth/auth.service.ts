@@ -46,14 +46,19 @@ export class AuthService {
 }
 
   async login(dto: LoginDto) {
-    const user = await this.userRepository.findOne({ where: { email: dto.email } });
-    if (!user) throw new BadRequestException('Identifiants invalides');
+  const user = await this.userRepository.findOne({ where: { email: dto.email } });
+  if (!user) throw new BadRequestException('Identifiants invalides');
 
-    const passwordMatches = await bcrypt.compare(dto.password, user.password);
-    if (!passwordMatches) throw new BadRequestException('Identifiants invalides');
-
-    return this.getTokens(user.id, user.pseudo, user.email, user.role);
+  // 👇 Compte créé via Google OAuth, pas de mot de passe
+  if (!user.password) {
+    throw new BadRequestException('Ce compte utilise la connexion Google');
   }
+
+  const passwordMatches = await bcrypt.compare(dto.password, user.password);
+  if (!passwordMatches) throw new BadRequestException('Identifiants invalides');
+
+  return this.getTokens(user.id, user.pseudo, user.email, user.role);
+}
 
   async refreshTokens(userId: number, refreshToken: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -112,23 +117,31 @@ export class AuthService {
   }
 
   async changePassword(userId: number, dto: ChangePasswordDto) {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) throw new UnauthorizedException();
+  const user = await this.userRepository.findOne({ where: { id: userId } });
+  if (!user) throw new UnauthorizedException();
 
-    const isMatch = await bcrypt.compare(dto.oldPassword, user.password);
-    if (!isMatch) {
-      throw new BadRequestException('Ancien mot de passe incorrect');
-    }
-
-    if (dto.newPassword !== dto.confirmPassword) {
-      throw new BadRequestException('La confirmation est différente');
-    }
-
-    user.password = await this.hashData(dto.newPassword);
-    await this.userRepository.save(user);
-
-    return { message: 'Modification réussie' };
+  // 1. Sécurité : Vérifier si l'utilisateur a un mot de passe (cas compte Google)
+  if (!user.password) {
+    throw new BadRequestException(
+      "Ce compte utilise la connexion Google. Vous devez d'abord définir un mot de passe."
+    );
   }
+
+  // 2. Maintenant TypeScript sait que user.password est une string
+  const isMatch = await bcrypt.compare(dto.oldPassword, user.password);
+  if (!isMatch) {
+    throw new BadRequestException('Ancien mot de passe incorrect');
+  }
+
+  if (dto.newPassword !== dto.confirmPassword) {
+    throw new BadRequestException('La confirmation est différente');
+  }
+
+  user.password = await this.hashData(dto.newPassword);
+  await this.userRepository.save(user);
+
+  return { message: 'Modification réussie' };
+}
 
   async logout(userId: number) {
     if (!userId) {

@@ -17,8 +17,8 @@ export class User {
   @Column({ unique: true })
   email!: string;
 
-  @Column({ nullable: true }) 
-  password!: string;
+  @Column({ type: 'varchar', nullable: true }) 
+  password!: string | null;
 
   @Column({ default: UserRole.USER })
   role!: UserRole;
