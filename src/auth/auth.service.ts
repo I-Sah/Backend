@@ -29,36 +29,36 @@ export class AuthService {
     }
 
     const userExists = await this.userRepository.findOne({ 
-    where: { email: dto.email } 
-  });
+      where: { email: dto.email } 
+    });
 
-  if (userExists) {
-    throw new BadRequestException('Un compte existe déjà avec cette adresse email');
+    if (userExists) {
+      throw new BadRequestException('Un compte existe déjà avec cette adresse email');
+    }
+
+      const hash = await this.hashData(dto.password);
+      const newUser = await this.userRepository.save({
+        pseudo: dto.pseudo,
+        email: dto.email,
+        password: hash,
+    });
+      return this.getTokens(newUser.id, newUser.pseudo, newUser.email, 'user');
   }
-
-    const hash = await this.hashData(dto.password);
-    const newUser = await this.userRepository.save({
-      pseudo: dto.pseudo,
-      email: dto.email,
-      password: hash,
-  });
-    return this.getTokens(newUser.id, newUser.pseudo, newUser.email, 'user');
-}
 
   async login(dto: LoginDto) {
-  const user = await this.userRepository.findOne({ where: { email: dto.email } });
-  if (!user) throw new BadRequestException('Identifiants invalides');
+    const user = await this.userRepository.findOne({ where: { email: dto.email } });
+    if (!user) throw new BadRequestException('Identifiants invalides');
 
-  // 👇 Compte créé via Google OAuth, pas de mot de passe
-  if (!user.password) {
-    throw new BadRequestException('Ce compte utilise la connexion Google');
+    //  Compte créé via Google OAuth, pas de mot de passe
+    if (!user.password) {
+      throw new BadRequestException('Ce compte utilise la connexion Google');
+    }
+
+    const passwordMatches = await bcrypt.compare(dto.password, user.password);
+    if (!passwordMatches) throw new BadRequestException('Identifiants invalides');
+
+    return this.getTokens(user.id, user.pseudo, user.email, user.role, user.avatar ?? undefined);
   }
-
-  const passwordMatches = await bcrypt.compare(dto.password, user.password);
-  if (!passwordMatches) throw new BadRequestException('Identifiants invalides');
-
-  return this.getTokens(user.id, user.pseudo, user.email, user.role);
-}
 
   async refreshTokens(userId: number, refreshToken: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -73,17 +73,17 @@ export class AuthService {
       throw new UnauthorizedException('Token invalide');
     }
 
-    return this.getTokens(user.id, user.pseudo, user.email, user.role);
+    return this.getTokens(user.id, user.pseudo, user.email, user.role, user.avatar ?? undefined);
   }
 
-  async getTokens(userId: number,pseudo: string, email: string, role: string) {
+  async getTokens(userId: number,pseudo: string, email: string, role: string,avatar?: string) {
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(
-        { sub: userId, pseudo, email, role }, 
+        { sub: userId, pseudo, email, role, avatar }, 
         { expiresIn: '15m', secret: process.env.JWT_SECRET || 'secret' } 
       ),
       this.jwtService.signAsync(
-        { sub: userId, pseudo, email, role }, 
+        { sub: userId, pseudo, email, role, avatar}, 
         { expiresIn: '7d', secret: process.env.JWT_REFRESH_SECRET || 'refreshsecret' }
       ),
     ]);

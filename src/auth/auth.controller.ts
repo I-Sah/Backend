@@ -68,9 +68,9 @@ export class AuthController {
     );
   }
 
+  @Get('profile')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Get('profile')
   @ApiOperation({ summary: 'Route protégée par JWT' })
   @ApiResponse({ status: 200, description: 'Profil utilisateur récupéré avec succès' })
   getProfile(@Req() req) {

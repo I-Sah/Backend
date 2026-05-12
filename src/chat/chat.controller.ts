@@ -1,48 +1,59 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { CreateConversationDto } from './dto/createConversation.dto';
 import { SendMessageDto } from './dto/sendMessage.dto';
-import { ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../guard/jwt-auth.guard';
 
-@Controller('chat')
+@Controller('chatbot-ai')
 export class ChatController {
     constructor(
         private readonly chatService: ChatService,
     ) {}
 
-    @Post('session')
+    @Post('conversation')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
     @ApiOperation({
         summary: 'Créer une session de conversation'
     })
-    createConversation(@Body() createConversationDto: CreateConversationDto) {
-        return this.chatService.createConversation(createConversationDto.userId, createConversationDto.title);
+    createConversation(@Req() user,@Body() createConversationDto: CreateConversationDto) {
+        return this.chatService.createConversation(user.user.userId, createConversationDto.title);
     }
 
     @Post('message')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
     @ApiOperation({
-        summary: 'discuter à une sugger'
+        summary: 'discuter à une sujet de conversation'
     })
     sendMessage(@Body() sendMessageDto: SendMessageDto) {
         return this.chatService.sendMessage(sendMessageDto);
     }
 
-    @Get('conversation/:userId')
+    @Get('list-conversation')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
     @ApiOperation({
-        summary: 'Créer une session de conversation'
+        summary: 'Liste conversation'
     })
-    getListConversation(@Param('userId') userId: number){
-        return this.chatService.listeConversation(userId);
+    getListConversation(@Req() user){
+        return this.chatService.listeConversation(user.user.userId);
     }
 
     @Get('history/:conversationId')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
     @ApiOperation({
-        summary: 'Créer une session de conversation'
+        summary: 'fil de discution d\'une conversation'
     })
     getHistoryConversation(@Param('conversationId') conversationId: number){
         return this.chatService.getHistoryConversation(conversationId);
     }
 
     @Delete('chat/:chadId')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
     @ApiOperation({
         summary: "Supprimer un message"
     })
@@ -51,6 +62,8 @@ export class ChatController {
     }
 
     @Delete('conversation/:conversationId')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
     @ApiOperation({
         summary: 'Supprimer une conversation'
     })

@@ -1,20 +1,22 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Like, Repository } from 'typeorm';
+import { Equal, Like, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class UserService {
   constructor(
   @InjectRepository(User)
   private userRepository: Repository<User>,
+  private readonly cloudinaryService: CloudinaryService
 ) {}
   
 
-  async create(data: Partial<User>) {
+  async create(data: Partial<User>, avatar: Express.Multer.File) {
     const userExists = await this.userRepository.findOne({ 
       where: { email: data.email } 
     });
@@ -23,6 +25,9 @@ export class UserService {
     }
     if (data.password) {
       data.password = await bcrypt.hash(data.password, 10);
+    }
+    if (avatar) {
+      data.avatar = await this.cloudinaryService.uploadFile(avatar);
     }
     return this.userRepository.save(data);
   }
@@ -36,9 +41,40 @@ export class UserService {
     return await this.userRepository.find({
       where: [
         { pseudo: Like(`%${search}%`) },
-        { email: Like(`%${search}%`) }
+        { email: Like(`%${search}%`) },
+        { role: Equal(search as any)} 
       ]
     });
+  }
+
+  async uploadAvatar(userId: number, avatar: Express.Multer.File){
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException('L\'utilisateur n\'existe pas');
+    }
+
+    const urlImage = await this.cloudinaryService.uploadFile(avatar);
+    user.avatar = urlImage;
+    await this.userRepository.save(user);
+    return {
+      message: "L'avatar a été modifié avec succès",
+      user,
+      status: 200
+    }
+  }
+
+  async deleteAvatar(userId: number) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException('L\'utilisateur n\'existe pas');
+    }
+    if (!user.avatar) {
+      await this.cloudinaryService.deleteFile(user.avatar ?? '');
+      user.avatar = null;
+      await this.userRepository.save(user);
+    }
   }
 
   
