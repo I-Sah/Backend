@@ -3,8 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
-import { User } from './user/entities/user.entity';
 import { GatewayModule } from './websocket/gateway.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -20,13 +20,14 @@ import { GatewayModule } from './websocket/gateway.module';
         username: configService.get<string>('POSTGRES_USER'),
         password: configService.get<string>('POSTGRES_PASSWORD'),
         database: configService.get<string>('POSTGRES_DB'),
-        entities: [User],
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: true, 
       }),
     }),
     GatewayModule,
     AuthModule,
     UserModule,
+    ChatModule,
   ],
 })
 export class AppModule {}
