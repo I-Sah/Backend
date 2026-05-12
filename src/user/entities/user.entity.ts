@@ -1,4 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Chat } from '../../chat/entities/chat.entity';
+import { Conversation } from '../../chat/entities/conversation.entity';
 
 export enum UserRole {
   USER = 'user',
@@ -25,4 +27,7 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   refreshToken!: string | null; 
+
+  @OneToMany(() => Conversation , (conversation) => conversation.user)
+  conversations!: User
 }
