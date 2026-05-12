@@ -9,13 +9,15 @@ import { CreateAuthDto } from './dto/create-auth.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { string } from 'joi';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
-    private jwtService: JwtService
+    private jwtService: JwtService,
+    private readonly cloudinaryService: CloudinaryService
   ) {}
 
   async hashData(data: string) {
@@ -23,7 +25,7 @@ export class AuthService {
     return await bcrypt.hash(data, saltOrRounds);
   }
 
-  async register(dto: CreateAuthDto) {
+  async register(dto: CreateAuthDto, avatar: Express.Multer.File) {
     if (dto.password !== dto.confirmPassword) {
       throw new BadRequestException('Les mots de passe ne correspondent pas');
     }
@@ -37,12 +39,17 @@ export class AuthService {
     }
 
       const hash = await this.hashData(dto.password);
+      let uploadResult;
+      if (avatar) {
+        uploadResult = await this.cloudinaryService.uploadFile(avatar??undefined);
+      }
       const newUser = await this.userRepository.save({
         pseudo: dto.pseudo,
         email: dto.email,
         password: hash,
+        avatar: uploadResult.secure_url,
     });
-      return this.getTokens(newUser.id, newUser.pseudo, newUser.email, 'user');
+      return this.getTokens(newUser.id, newUser.pseudo, newUser.email, 'user', newUser.avatar ?? undefined);
   }
 
   async login(dto: LoginDto) {

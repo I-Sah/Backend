@@ -12,6 +12,7 @@ import { User } from '../user/entities/user.entity';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
     JwtRefreshStrategy,
     GoogleStrategy,
     FacebookStrategy,
+    CloudinaryService
   ],
 })
 export class AuthModule {}
