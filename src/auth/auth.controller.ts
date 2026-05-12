@@ -38,7 +38,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Tokens rafraîchis avec succès' })
   @ApiResponse({ status: 401, description: 'Refresh token invalide ou manquant' })
   async refresh(@Req() req) {
-    const userId = req.user.sub;
+    const userId = req.user.userId;
     const refreshToken = req.user.refreshToken;
 
     return this.authService.refreshTokens(userId, refreshToken);
@@ -98,7 +98,7 @@ export class AuthController {
   @Patch('change-password')
   @ApiOperation({ summary: 'Changer le mot de passe (connecté)' })
   async change(@Req() req, @Body() dto: ChangePasswordDto) {
-    return await this.authService.changePassword(req.user.sub, dto);
+    return await this.authService.changePassword(req.user.userId, dto);
   }
 
   @ApiBearerAuth()
