@@ -27,7 +27,8 @@ export class UserService {
       data.password = await bcrypt.hash(data.password, 10);
     }
     if (avatar) {
-      data.avatar = await this.cloudinaryService.uploadFile(avatar);
+      const uploadResult = await this.cloudinaryService.uploadFile(avatar??undefined);
+      data.avatar = uploadResult.secure_url;
     }
     return this.userRepository.save(data);
   }
@@ -54,8 +55,8 @@ export class UserService {
       throw new NotFoundException('L\'utilisateur n\'existe pas');
     }
 
-    const urlImage = await this.cloudinaryService.uploadFile(avatar);
-    user.avatar = urlImage;
+    const uploadResult = await this.cloudinaryService.uploadFile(avatar);
+    user.avatar = uploadResult.secure_url;
     await this.userRepository.save(user);
     return {
       message: "L'avatar a été modifié avec succès",
