@@ -1,5 +1,5 @@
-import { Controller, Post, Body, UseGuards, Get, Req, Patch, Query, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { Controller, Post, Body, UseGuards, Get, Req, Patch, Query, Res, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import { LoginDto } from './dto/login.dto';
@@ -9,6 +9,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from '../guard/jwt-auth.guard';
 import { Public } from '../decorator/public.decorator';
 import { RefreshTokenGuard } from '../guard/refresh-token.guart';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Authentification')
 @Controller('auth')
@@ -19,8 +20,25 @@ export class AuthController {
   @ApiOperation({ summary: 'Créer un nouveau compte' })
   @ApiResponse({ status: 201, description: 'Utilisateur créé avec succès' })
   @ApiResponse({ status: 400, description: 'Mauvaise requête (ex: mots de passe ne correspondent pas)' })
-  async register(@Body() dto: CreateAuthDto) {
-    return this.authService.register(dto);
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('avatar'))
+  @ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          pseudo: { type: 'string' },
+          email: { type: 'string' },
+          password: { type: 'string' },
+          confirmPassword: { type: 'string' },
+          avatar: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+  })
+  async register(@Body() registerDto: CreateAuthDto,@UploadedFile() avatar: Express.Multer.File){
+    return this.authService.register(registerDto,avatar);
 
   }
 
@@ -68,9 +86,9 @@ export class AuthController {
     );
   }
 
+  @Get('profile')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Get('profile')
   @ApiOperation({ summary: 'Route protégée par JWT' })
   @ApiResponse({ status: 200, description: 'Profil utilisateur récupéré avec succès' })
   getProfile(@Req() req) {

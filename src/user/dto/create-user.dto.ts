@@ -15,6 +15,11 @@ export class CreateUserDto {
   @IsEnum(UserRole)
   role!: UserRole;
 
+  @ApiProperty({ example: 'image.png'})
+  @IsString()
+  avatar!: string;
+
+
   @ApiProperty({ example: 'password123' })
   @IsString()
   @MinLength(6)
