@@ -1,5 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
 import {
   MessageBody,
   ConnectedSocket,
@@ -10,6 +11,9 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { Repository } from 'typeorm';
+import { NotificationEntity } from './entities/notification.entity';
+import { ChatMessageEntity } from './entities/chat-message.entity';
 
 // ─────────────────────────────────────────────
 // Types
@@ -54,7 +58,12 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
   
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(private readonly jwtService: JwtService,
+    @InjectRepository(ChatMessageEntity) 
+    private readonly msgRepo: Repository<ChatMessageEntity>,
+    @InjectRepository(NotificationEntity) 
+    private readonly notifRepo: Repository<NotificationEntity>,
+  ) {}
   // Stockage en mémoire (remplacer par Redis/BDD en prod)
   private connectedUsers = new Map<string, UserInfo>();
   private messageHistory = new Map<string, ChatMessage[]>(); // room → messages
@@ -65,7 +74,10 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ─────────────────────────────────────────────
   async handleConnection(client: Socket) {
     try {
-      const token = client.handshake.auth.token || client.handshake.headers.authorization?.split(' ')[1];
+      const token = 
+      client.handshake.auth?.token || 
+      client.handshake.headers.authorization?.split(' ')[1] || 
+      client.handshake.query?.token;
       if (!token) throw new UnauthorizedException();
 
       const payload = await this.jwtService.verifyAsync(token, {
@@ -135,38 +147,30 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ENVOI D'UN MESSAGE
   // ─────────────────────────────────────────────
   @SubscribeMessage('message:send')
-  handleMessage(
+  async handleMessage(
     @MessageBody() data: { content: string; room?: string },
     @ConnectedSocket() client: Socket,
   ) {
     const sender = this.connectedUsers.get(client.id);
-    if (!sender) {
-      client.emit('error', { message: 'Non enregistré. Envoyez "register" d\'abord.' });
-      return;
-    }
+    if (!sender) return ;
 
     const room = data.room ?? sender.room;
-    const msg: ChatMessage = {
-      id: this.generateId(),
+//Sauvegarde en base de données
+    const savedMsg = await this.msgRepo.save({
       senderId: client.id,
-      senderName: sender.username,
-      room,
+      senderName: sender.username, room,
       content: data.content,
-      timestamp: new Date(),
-      type: 'text',
-    };
-
-    // Sauvegarder dans l'historique (max 100 messages par room)
-    const history = this.messageHistory.get(room) ?? [];
-    history.push(msg);
-    if (history.length > 100) history.shift();
-    this.messageHistory.set(room, history);
-
-    // Diffuser à toute la room
-    this.server.to(room).emit('message:new', msg);
-
-    // Détecter les mentions (@username)
-    this.handleMentions(msg, room);
+    });
+    
+    this.connectedUsers.forEach(async (user, socketId) => {
+    if (user.room === room && socketId !== client.id) {
+      await this.pushNotificationToUser(socketId, {
+        type: 'message',
+        title: `Nouveau message dans ${room}`,
+        body: `${sender.username}: ${data.content}`,
+      });
+    }
+  });
 
     console.log(`[WS] Message in "${room}" from ${sender.username}: ${data.content}`);
   }
@@ -286,25 +290,22 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.emit('users:online', users);
   }
 
-  private pushNotificationToUser(
-    socketId: string,
-    payload: Omit<Notification, 'id' | 'userId' | 'read' | 'createdAt'>,
-  ) {
-    const notif: Notification = {
-      id: this.generateId(),
-      userId: socketId,
-      read: false,
-      createdAt: new Date(),
-      ...payload,
-    };
-    const list = this.notifications.get(socketId) ?? [];
-    list.unshift(notif);
-    if (list.length > 50) list.pop();
-    this.notifications.set(socketId, list);
+  private async pushNotificationToUser(
+  socketId: string,
+  payload: { type: string; title: string; body: string; meta?: any },
+) {
+  // 1. Enregistrement en Base de Données
+  const newNotif = await this.notifRepo.save({
+    userId: socketId, // Note: Idéalement, utilisez l'ID utilisateur de la BDD, pas le socketId
+    type: payload.type,
+    title: payload.title,
+    body: payload.body,
+    read: false,
+  });
 
-    // Émettre en temps réel si le client est connecté
-    this.server.to(socketId).emit('notification:new', notif);
-  }
+  // 2. Envoi en temps réel via Socket
+  this.server.to(socketId).emit('notification:new', newNotif);
+}
 
   private pushNotificationToRoom(
     room: string,

@@ -7,7 +7,6 @@ import { Conversation } from './entities/conversation.entity';
 import { SendMessageDto } from './dto/sendMessage.dto';
 import { ConfigService } from '@nestjs/config';
 import { getErrorMessage } from '../common/utils/error.utils';
-import { Content, GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 import { AiResult } from './types/ai-result.type';
 

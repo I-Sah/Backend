@@ -44,11 +44,11 @@ export class AuthController {
     return this.authService.refreshTokens(userId, refreshToken);
   }
 
-  @Get('google')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Connexion via Google' })
-  @ApiResponse({ status: 200, description: 'Connexion via Google réussie' })
-  async googleAuth(@Req() req) {}
+  // @Get('google')
+  // @UseGuards(AuthGuard('google'))
+  // @ApiOperation({ summary: 'Connexion via Google' })
+  // @ApiResponse({ status: 200, description: 'Connexion via Google réussie' })
+  // async googleAuth(@Req() req) {}
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
@@ -108,4 +108,36 @@ export class AuthController {
   async logout(@Req() req) {
     return await this.authService.logout(req.user.userId);
   }
+
+  @Get('socket-info')
+    @ApiOperation({ 
+      summary: 'Documentation des WebSockets', 
+      description: 'URL: ws://backend-rp0j.onrender.com| Events: register, message:send, message:private, notification:new' 
+    })
+    getSocketInfo() {
+      return { message: "Consultez la description Swagger pour les détails techniques du socket." };
+    }
+
+  @Get('docs/sockets')
+  @ApiOperation({ 
+    summary: 'LISTE DES ÉVÉNEMENTS SOCKET.IO', 
+    description: `
+    <b>Connexion:</b> ws://backend-rp0j.onrender.com?token=VOTRE_JWT
+
+    Creer un onglet Socket.io dans Postman et se connecter à l'URL ci-dessus en remplaçant VOTRE_JWT par un token valide obtenu après connexion.
+    Ajouter le token dans Param dans postman
+    key : token
+    value : VOTRE_JWT
+    
+    <b>Événements à envoyer (EMIT):</b>
+    - 'register' : { "room": "string" }
+    - 'message:send' : { "content": "string", "room": "string" }
+    - 'message:private' : { "toUserId": "string", "content": "string" }
+    
+    <b>Événements à écouter (ON):</b>
+    - 'message:new' : Reçoit le message en temps réel
+    - 'notification:new' : Reçoit les mentions @pseudo
+    `
+  })
+  getSocketDocs() {}
 }
