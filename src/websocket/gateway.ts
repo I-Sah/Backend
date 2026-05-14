@@ -151,20 +151,14 @@ handleRegister(
 
   client.join(room);
 
-  const userInfo: UserInfo = {
-    socketId: client.id,
-
-    // ✅ CORRECTION
-    userId: Number(userPayload.userId),
-
-    username: userPayload.pseudo,
-
-    room,
-
-    joinedAt: new Date(),
-  };
-
-  this.connectedUsers.set(client.id, userInfo);
+    const userInfo: UserInfo = {
+      id: client.id,
+      username: userPayload.pseudo, // Sécurisé
+      room,
+      joinedAt: new Date(),
+    };
+    
+    this.connectedUsers.set(client.id, userInfo);
 
   const history =
     this.messageHistory.get(room) ?? [];
@@ -292,65 +286,33 @@ if (targetUser) {
   }
 
   @SubscribeMessage('notifications:get')
-handleGetNotifications(
-  @ConnectedSocket() client: Socket,
-) {
-
-  // ✅ CORRECTION
-  const userId = client.data.user.userId;
-
-  const notifs =
-    this.notifications.get(userId.toString()) ?? [];
-
-  client.emit('notifications:list', notifs);
-}
+  handleGetNotifications(@ConnectedSocket() client: Socket) {
+    const notifs = this.notifications.get(client.id) ?? [];
+    client.emit('notifications:list', notifs);
+  }
 
   @SubscribeMessage('notifications:read')
-handleMarkRead(
-  @MessageBody() data: { ids: string[] },
-  @ConnectedSocket() client: Socket,
-) {
-
-  const userId = client.data.user.userId;
-
-  const notifs =
-    this.notifications.get(userId.toString()) ?? [];
-
-  const updated = notifs.map((n) =>
-    data.ids.includes(n.id)
-      ? { ...n, read: true }
-      : n,
-  );
-
-  this.notifications.set(
-    userId.toString(),
-    updated,
-  );
-
-  client.emit(
-    'notifications:updated',
-    updated,
-  );
-}
+  handleMarkRead(
+    @MessageBody() data: { ids: string[] },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const notifs = this.notifications.get(client.id) ?? [];
+    const updated = notifs.map((n) =>
+      data.ids.includes(n.id) ? { ...n, read: true } : n,
+    );
+    this.notifications.set(client.id, updated);
+    client.emit('notifications:updated', updated);
+  }
 
   @SubscribeMessage('notifications:read-all')
-handleMarkAllRead(
-  @ConnectedSocket() client: Socket,
-) {
-
-  const userId =
-    client.data.user.userId.toString();
-
-  const notifs =
-    (
-      this.notifications.get(userId) ?? []
-    ).map((n) => ({
+  handleMarkAllRead(@ConnectedSocket() client: Socket) {
+    const notifs = (this.notifications.get(client.id) ?? []).map((n) => ({
       ...n,
       read: true,
     }));
-
-  this.notifications.set(userId, notifs);
-}
+    this.notifications.set(client.id, notifs);
+    client.emit('notifications:updated', notifs);
+  }
 
   // ─────────────────────────────────────────────
   // INDICATEUR DE FRAPPE (typing)

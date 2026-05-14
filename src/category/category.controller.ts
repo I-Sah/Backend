@@ -27,6 +27,12 @@ export class CategoryController {
     return this.categoryService.findAll();
   }
 
+  @Get('/service/:id')
+  @ApiOperation({ summary: 'Récupérer toutes les services lier à une categorie' })
+  findAllServiceOfCategory(@Param('id') id: string) {
+    return this.categoryService.getListService(+id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer une catégorie par son ID' })
   findOne(@Param('id') id: string) {

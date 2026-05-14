@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsNumber, IsBoolean, IsNotEmpty } from 'class-validator';
+import { IsEnum, IsOptional, IsNumber, IsBoolean, IsNotEmpty, IsNumber, IsBoolean, IsNotEmpty } from 'class-validator';
+import { Transform } from 'class-transformer'; // 🚀 IMPORTANT
 import { Transform } from 'class-transformer'; // 🚀 IMPORTANT
 import { SignalStatus } from '../enums/signal_status.enum';
 import { SignalUrgence } from '../enums/urgence.enum';
@@ -52,8 +53,9 @@ export class CreateSignalDto {
   @IsBoolean()
   anonyme!: boolean;
 
-  @ApiProperty({ description: 'ID of the service', format: 'number' , nullable: true })
-  @Transform(({ value }) => Number(value)) // Convertit la string en number
-  @IsNumber()
+  @ApiProperty({
+    description: 'ID of the service',
+    format: 'number',
+  })
   service_id!: number;
 }
