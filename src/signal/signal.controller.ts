@@ -20,119 +20,64 @@ import multer from 'multer';
 export class SignalController {
   constructor(private readonly signalService: SignalService) {}
 
-  @Post()
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: 'Créer un nouveau signalement avec une photo',
-  })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    description: 'Données du signalement et fichier image',
-    schema: {
-      type: 'object',
-
-      properties: {
-
-        fichier: {
-          type: 'string',
-          format: 'binary',
-          description: 'Photo du signalement (optionnel)',
-        },
-
-        latitude: {
-          type: 'number',
-          default: -18.1444,
-        },
-
-        longitude: {
-          type: 'number',
-          default: 49.4223,
-        },
-
-        categorie: {
-          type: 'string',
-          example: 'Accident',
-        },
-
-        titre: {
-          type: 'string',
-          default: 'Lampadaire cassé',
-        },
-
-        signal_status: {
-          type: 'enum',
-          enum: Object.values(SignalStatus),
-          description: 'Statut du signalement ',
-        },
-
-        description: {
-          type: 'string',
-          default: 'Description détaillée du signalement',
-          description: 'Description détaillée du signalement (optionnel)',
-        },
-
-        priority: {
-          type: 'enum',
-          enum: Object.values(SignalUrgence),
-          description: 'Priorité du signalement ',
-        },
-
-        anonyme: {
-          type: 'boolean',
-        },
-
-        service_id: {
-          type: 'number',
-        },
-
-        created_at: {
-          type: 'string',
-          format: 'date-time',
-        },
-
-        update_at: {
-          type: 'string',
-          format: 'date-time',
-        },
-
-        resolu_at: {
-          type: 'string',
-          format: 'date-time',
-        },
+ @Post()
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@HttpCode(HttpStatus.CREATED)
+@ApiOperation({
+  summary: 'Créer un nouveau signalement avec une photo',
+})
+@ApiConsumes('multipart/form-data')
+@ApiBody({
+  description: 'Données du signalement et fichier image',
+  schema: {
+    type: 'object',
+    properties: {
+      fichier: {
+        type: 'string',
+        format: 'binary',
+        description: 'Photo du signalement (optionnel)',
       },
-
-      required: [
-        'latitude',
-        'longitude',
-        'categorie',
-        'titre',
-        'service_id',
-        'created_at',
-      ],
+      latitude: { type: 'number', default: -18.1444 },
+      longitude: { type: 'number', default: 49.4223 },
+      categorie_id: { type: 'number' },
+      titre: { type: 'string', default: 'Lampadaire cassé' },
+      signal_status: {
+        type: 'enum',
+        enum: Object.values(SignalStatus),
+        description: 'Statut du signalement',
+      },
+      description: {
+        type: 'string',
+        default: 'Description détaillée du signalement',
+        description: 'Description détaillée du signalement (optionnel)',
+      },
+      priority: {
+        type: 'enum',
+        enum: Object.values(SignalUrgence),
+        description: 'Priorité du signalement',
+      },
+      anonyme: { type: 'boolean' },
+      service_id: { type: 'number' },
     },
-  })
-  @UseInterceptors(
-  FileInterceptor('fichier', {
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 2 * 1024 * 1024 },
-  }),
-)
-  async create(
-    @Req() req: any,
-    @Body() createSignalDto: CreateSignalDto,
-    @UploadedFile() fichier?: Express.Multer.File,
-  ) {
+    required: ['latitude', 'longitude', 'categorie_id', 'titre', 'service_id'],
+  },
+})
+@UseInterceptors(FileInterceptor('fichier'))
+async create(
+  @Req() req: any,
+  @Body() createSignalDto: CreateSignalDto,
+  @UploadedFile() fichier?: Express.Multer.File,
+) {
+  // Récupération de l'ID utilisateur depuis le JWT Guard
+  const userId = req.user.sub;
 
-    // récupération automatique depuis le JWT
-    const userId = req.user.sub;
-
-    return await this.signalService.createSignal(
-      createSignalDto,
-      fichier,
-    );
-  }
+  return await this.signalService.createSignal(
+    createSignalDto,
+    userId,
+    fichier,
+  );
+}
 
   @Get()
   @ApiOperation({ summary: 'Obtenir tous les signalements (Pagination)' })
