@@ -5,8 +5,4 @@ export class CreateCategoryDto {
     @ApiProperty()
     @IsString()
     name!: string;
-
-    @ApiProperty()
-    @IsNumber()
-    serviceId!: number;
 }

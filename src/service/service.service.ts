@@ -35,27 +35,42 @@ export class ServiceService {
       }
 
       let logoUrl = null;
-      // if (logo) {
-      //   const uploadResult = await this.cloudinaryService.uploadFile(logo);
-      //   logoUrl = uploadResult.secure_url;
-      // } else {
-      //   const service = this.serviceRepository.create({
-      //     ...serviceData,
-      //     logo: logoUrl,
-      //     categories: categories, // TypeORM fera le lien dans la table de jonction
-      //   });
+      if (logo) {
+        const uploadResult = await this.cloudinaryService.uploadFile(logo);
 
-      // }
+        const service = this.serviceRepository.create({
+          ...serviceData,
+          logo: uploadResult.secure_url,
+          categories: categories, // TypeORM fera le lien dans la table de jonction
+        });
+
+        const savedService = await this.serviceRepository.save(service);
+
+        return {
+          message: 'Service créé avec succès',
+          service: savedService,
+          status: 201,
+        };
+
+      } else {
+        const service = this.serviceRepository.create({
+          ...serviceData,
+          categories: categories, 
+        })
+
+        const savedService = await this.serviceRepository.save(service);
+
+        return {
+          message: 'Service créé avec succès',
+          service: savedService,
+          status: 201,
+        };
+      }
 
       // 4. Créer et sauvegarder le service avec ses catégories
 
-      // const savedService = await this.serviceRepository.save(service);
+      
 
-      // return {
-      //   message: 'Service créé avec succès',
-      //   service: savedService,
-      //   status: 201,
-      // };
     } catch (error) {
       console.error(error);
       throw new BadRequestException("Erreur lors de la création du service");
@@ -83,5 +98,60 @@ export class ServiceService {
       throw new HttpException(`Le service #${id} n'existe pas`, 404);
     }
     return { data: service };
+  }
+
+  async update(id: number, updateServiceDto: UpdateServiceDto, logo?: Express.Multer.File) {
+    try {
+      const service = await this.serviceRepository.findOne({ 
+        where: { id },
+        relations: ['categories'] 
+      });
+
+      if (!service) {
+        throw new HttpException(`Le service avec l'ID #${id} n'existe pas`, 404);
+      }
+
+      const { categoryIds, ...restData } = updateServiceDto;
+
+      if (categoryIds) {
+        const newCategories = await this.categoryRepository.findBy({
+          id: In(categoryIds),
+        });
+        service.categories = newCategories; 
+      }
+
+      if (logo) {
+        const uploadResult = await this.cloudinaryService.uploadFile(logo);
+        service.logo = uploadResult.secure_url;
+      }
+
+      Object.assign(service, restData);
+
+      const updatedService = await this.serviceRepository.save(service);
+
+      return {
+        message: `Service #${id} modifié avec succès`,
+        data: updatedService,
+        status: 200,
+      };
+    } catch (error) {
+      throw new BadRequestException("Erreur lors de la modification du service");
+    }
+  }
+
+  async remove(id: number) {
+
+    const service = await this.serviceRepository.findOne({ where: { id } });
+    
+    if (!service) {
+      throw new HttpException(`Le service avec l'ID #${id} n'existe pas`, 404);
+    }
+
+    await this.serviceRepository.remove(service);
+
+    return {
+      message: `Service #${id} et ses liaisons supprimés avec succès`,
+      status: 200,
+    };
   }
 }
