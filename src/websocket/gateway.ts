@@ -52,7 +52,7 @@ interface Notification {
 @WebSocketGateway({
   cors: { origin: '*' },
   // namespace: '/chat',
-  transports: ['websocket'],
+  transports: ['polling','websocket'],
 })
 export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

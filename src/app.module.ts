@@ -6,6 +6,7 @@ import { UserModule } from './user/user.module';
 import { GatewayModule } from './websocket/gateway.module';
 import { ChatModule } from './chat/chat.module';
 import { CategoryModule } from './category/category.module';
+import { ServiceModule } from './service/service.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { CategoryModule } from './category/category.module';
     UserModule,
     ChatModule,
     CategoryModule,
+    ServiceModule,
   ],
 })
 export class AppModule {}

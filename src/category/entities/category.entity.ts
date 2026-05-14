@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, ManyToMany, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Service } from "../../service/entities/service.entity";
 
 @Entity()
 export class Category {
@@ -10,4 +11,7 @@ export class Category {
 
     @Column({type: 'boolean', default: true})
     isActive!: Boolean
+
+    @ManyToMany(() => Service, (service) => service.categories)
+    services!: Service[];
 }

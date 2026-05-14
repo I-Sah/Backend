@@ -61,7 +61,7 @@ export class UserController {
 
   @Get(':id')
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Récupérer tous les utilisateurs (protégé par JWT)' })
   @ApiResponse({ status: 200, description: 'Utilisateur trouvé' })
   @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
@@ -72,7 +72,7 @@ export class UserController {
 
   @Patch('upade-profile/:id')
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(JwtAuthGuard)
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Ajouter ou Mettre à jour l\'image de la profil d\'un utilisateur par son ID (protégé par JWT)' })
