@@ -34,7 +34,6 @@
     "@nestjs/typeorm": "^11.0.1",
     "@nestjs/websockets": "^11.1.19",
     "@types/bcrypt": "^6.0.0",
-    "@types/multer": "^2.1.0",
     "@types/node": "^25.7.0",
     "axios": "^1.16.0",
     "bcrypt": "^6.0.0",
