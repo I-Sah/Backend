@@ -8,6 +8,7 @@ import { ChatModule } from './chat/chat.module';
 import { CategoryModule } from './category/category.module';
 import { ServiceModule } from './service/service.module';
 import { SignalModule } from './signal/signal.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SignalModule } from './signal/signal.module';
     CategoryModule,
     ServiceModule,
     SignalModule,
+    NotificationModule,
   ],
 })
 export class AppModule {}

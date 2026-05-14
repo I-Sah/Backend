@@ -1,12 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { User } from '../../user/entities/user.entity';
 
 @Entity('notifications')
 export class NotificationEntity {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
-  userId!: string; // ID du destinataire
+  @Column({type: 'int', nullable: true })
+  userId!: number |null; // ID du destinataire
 
   @Column()
   type!: string; // 'mention', 'message', etc.
@@ -22,4 +23,8 @@ export class NotificationEntity {
 
   @CreateDateColumn({ type: 'timestamp' })
   timestamp!: Date;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'userId' }) // Fait le lien avec la colonne userId ci-dessus
+  user!: User;
 }

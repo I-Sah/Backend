@@ -14,12 +14,14 @@ import { Server, Socket } from 'socket.io';
 import { Repository } from 'typeorm';
 import { NotificationEntity } from './entities/notification.entity';
 import { ChatMessageEntity } from './entities/chat-message.entity';
+import { string } from 'joi';
 
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
 interface UserInfo {
-  id: string;
+  socketId: string;
+  userId: number;
   username: string;
   room: string;
   joinedAt: Date;
@@ -37,7 +39,7 @@ interface ChatMessage {
 
 interface Notification {
   id: string;
-  userId: string;        // destinataire
+  userId: number;        // destinataire
   type: 'mention' | 'room_invite' | 'message' | 'system';
   title: string;
   body: string;
@@ -123,11 +125,12 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.join(room);
 
     const userInfo: UserInfo = {
-      id: client.id,
-      username: userPayload.pseudo, // Sécurisé
-      room,
-      joinedAt: new Date(),
-    };
+  socketId: client.id,
+  userId: Number(userPayload.sub),
+  username: userPayload.pseudo,
+  room,
+  joinedAt: new Date(),
+};
     
     this.connectedUsers.set(client.id, userInfo);
 
@@ -164,7 +167,7 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
     
     this.connectedUsers.forEach(async (user, socketId) => {
     if (user.room === room && socketId !== client.id) {
-      await this.pushNotificationToUser(socketId, {
+      await this.pushNotificationToUser(user, {
         type: 'message',
         title: `Nouveau message dans ${room}`,
         body: `${sender.username}: ${data.content}`,
@@ -206,12 +209,23 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
       .emit('message:private', { ...msg, direction: 'in' });
 
     // Notification push au destinataire
-    this.pushNotificationToUser(data.toUserId, {
-      type: 'message',
-      title: `Message de ${sender.username}`,
-      body: data.content.length > 60 ? data.content.slice(0, 57) + '…' : data.content,
-      meta: { fromId: client.id, fromName: sender.username },
-    });
+    const targetUser = Array.from(this.connectedUsers.values())
+  .find(user => user.userId === Number(data.toUserId));
+
+if (targetUser) {
+  this.pushNotificationToUser(targetUser, {
+    type: 'message',
+    title: `Message de ${sender.username}`,
+    body:
+      data.content.length > 60
+        ? data.content.slice(0, 57) + '…'
+        : data.content,
+    meta: {
+      fromId: client.id,
+      fromName: sender.username,
+    },
+  });
+}
   }
 
   // ─────────────────────────────────────────────
@@ -234,7 +248,10 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('notifications:get')
   handleGetNotifications(@ConnectedSocket() client: Socket) {
-    const notifs = this.notifications.get(client.id) ?? [];
+    const userId = client.data.user.sub;
+
+const notifs =
+  this.notifications.get(userId.toString()) ?? [];
     client.emit('notifications:list', notifs);
   }
 
@@ -243,7 +260,10 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { ids: string[] },
     @ConnectedSocket() client: Socket,
   ) {
-    const notifs = this.notifications.get(client.id) ?? [];
+    const userId = client.data.user.sub;
+
+const notifs =
+  this.notifications.get(userId.toString()) ?? [];
     const updated = notifs.map((n) =>
       data.ids.includes(n.id) ? { ...n, read: true } : n,
     );
@@ -253,12 +273,15 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('notifications:read-all')
   handleMarkAllRead(@ConnectedSocket() client: Socket) {
-    const notifs = (this.notifications.get(client.id) ?? []).map((n) => ({
-      ...n,
-      read: true,
-    }));
-    this.notifications.set(client.id, notifs);
-    client.emit('notifications:updated', notifs);
+    const userId = client.data.user.sub.toString();
+
+const notifs =
+  (this.notifications.get(userId) ?? []).map((n) => ({
+    ...n,
+    read: true,
+  }));
+
+this.notifications.set(userId, notifs);
   }
 
   // ─────────────────────────────────────────────
@@ -291,20 +314,29 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private async pushNotificationToUser(
-  socketId: string,
+  user: UserInfo,
   payload: { type: string; title: string; body: string; meta?: any },
 ) {
-  // 1. Enregistrement en Base de Données
+  if (!user?.userId || isNaN(user.userId)) {
+    console.log('❌ INVALID USER ID:', user);
+    return;
+  }
+
   const newNotif = await this.notifRepo.save({
-    userId: socketId, // Note: Idéalement, utilisez l'ID utilisateur de la BDD, pas le socketId
+    userId: user.userId,
     type: payload.type,
     title: payload.title,
     body: payload.body,
     read: false,
   });
 
-  // 2. Envoi en temps réel via Socket
-  this.server.to(socketId).emit('notification:new', newNotif);
+  // socket
+  this.server.to(user.socketId).emit('notification:new', newNotif);
+console.log('SAVE NOTIF ->', {
+  userId: user.userId,
+  type: payload.type,
+});
+  return newNotif;
 }
 
   private pushNotificationToRoom(
@@ -314,7 +346,7 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     this.connectedUsers.forEach((user, socketId) => {
       if (user.room === room && socketId !== excludeId) {
-        this.pushNotificationToUser(socketId, payload);
+        this.pushNotificationToUser(user, payload);
       }
     });
   }
@@ -330,7 +362,7 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
           user.username.toLowerCase() === username.toLowerCase() &&
           socketId !== msg.senderId
         ) {
-          this.pushNotificationToUser(socketId, {
+          this.pushNotificationToUser(user, {
             type: 'mention',
             title: `${msg.senderName} vous a mentionné`,
             body: msg.content,
@@ -361,4 +393,38 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
   private generateId(): string {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   }
+
+ async broadcastSignalNotification(
+  signal: any,
+  authorName: string,
+) {
+
+  const notifPayload = {
+    type: 'signal_new',
+    title: `📍 Nouveau signalement : ${signal.titre}`,
+    body: `${authorName} a créé un nouveau signalement : ${signal.titre}`,
+    meta: {
+      signalId: signal.signal_id,
+      latitude: signal.latitude,
+      longitude: signal.longitude,
+    },
+  };
+
+  // Event global temps réel
+  this.server.emit('signal:new', {
+    signal,
+    notification: notifPayload,
+  });
+
+  // Notification individuelle
+  for (const user of this.connectedUsers.values()) {
+
+    await this.pushNotificationToUser(user, {
+      type: 'message',
+      title: notifPayload.title,
+      body: notifPayload.body,
+      meta: notifPayload.meta,
+    });
+  }
+}
 }
