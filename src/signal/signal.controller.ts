@@ -70,7 +70,7 @@ async create(
   @UploadedFile() fichier?: Express.Multer.File,
 ) {
   // Récupération de l'ID utilisateur depuis le JWT Guard
-  const userId = req.user.sub;
+  const userId = req.user.userId;
 
   return await this.signalService.createSignal(
     createSignalDto,
@@ -101,6 +101,24 @@ async create(
     return await this.signalService.getAllSignals(+page, +limit);
   }
 
+  @Get('user/:id')
+  async getSignalsByUserId(
+    @Param('id') id: number,
+  ) {
+
+    return await this.signalService.getSignalsByUser(id);
+  }
+
+  @Get('me')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  async getMySignals(@Req() req: any) {
+
+    const userId = req.user.userId;
+
+    return await this.signalService.getSignalsByUser(userId);
+  }
+
   @Get(':id')
   async getById(
     @Param('id', ParseIntPipe) id: number,) {
@@ -125,6 +143,8 @@ async create(
         signal_type: { type: 'string' },
         description: { type: 'string' },
         priority: { type: 'string' },
+        service_id: { type: 'number' },
+        category_id: { type: 'number' },
         signal_status: { type: 'string', description: 'Statut du signalement (PENDING, VALIDATED, etc.)' }
       },
     },

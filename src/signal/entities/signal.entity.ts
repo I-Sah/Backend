@@ -36,7 +36,7 @@ export class Signal {
     @Column()
     categorie_id! : number;
 
-    @Column()
+    @Column({ nullable: true })
     service_id! : number;
 
     @Column("boolean")

@@ -52,7 +52,7 @@ export class CreateSignalDto {
   @IsBoolean()
   anonyme!: boolean;
 
-  @ApiProperty({ description: 'ID of the service', format: 'number' })
+  @ApiProperty({ description: 'ID of the service', format: 'number' , nullable: true })
   @Transform(({ value }) => Number(value)) // Convertit la string en number
   @IsNumber()
   service_id!: number;

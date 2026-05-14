@@ -12,13 +12,21 @@ export class NotificationService {
 
   // Dans notification.service.ts
 
-async createSignalNotification(signal: any, authorName: string,userId: number | null) {
+async createSignalNotification(
+  signal: any,
+  authorName: string,
+  userId: number | null,
+) {
+
+  console.log('SAVE NOTIF USER ID =', userId);
+
   const newNotif = this.notifRepo.create({
-    userId: userId, 
+    userId: userId,
     type: 'signal_new',
-    title: `📍 Nouveau signalement : ${signal.titre || 'Signalement'}`,
-    // 🔥 On utilise ici le 'authorName' dynamique transmis par le service
-    body: `${authorName} a créé un nouveau signalement : ${signal.titre}`, 
+    title: `📍 Nouveau signalement : ${
+      signal.titre || 'Signalement'
+    }`,
+    body: `${authorName} a créé un nouveau signalement : ${signal.titre}`,
     read: false,
   });
 
@@ -32,6 +40,15 @@ async createSignalNotification(signal: any, authorName: string,userId: number | 
       },
     });
   }
+
+  async getNotificationsByUser(userId: number) {
+
+  return await this.notifRepo.find({
+    where: {
+      userId: userId,
+    },
+  });
+}
 
   async getUnreadNotifications() {
     return await this.notifRepo.find({

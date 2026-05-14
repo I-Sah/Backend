@@ -24,68 +24,101 @@ export class SignalService {
   fichier?: Express.Multer.File,
 ) {
   try {
+
     let pictureUrl: string | null = null;
 
+    // Upload image
     if (fichier) {
       try {
-        const uploadResult = await this.cloudinaryService.uploadFile(fichier);
+        const uploadResult =
+          await this.cloudinaryService.uploadFile(fichier);
+
         pictureUrl = uploadResult.secure_url;
+
       } catch (cloudinaryError) {
-        console.error('[Cloudinary Upload Warning]:', cloudinaryError);
+        console.error(
+          '[Cloudinary Upload Warning]:',
+          cloudinaryError,
+        );
       }
     }
 
+    // Création du signalement
     const signalData = {
-      ...Object.assign({}, createSignalDto),
+      ...createSignalDto,
       userId,
     };
 
     if (pictureUrl) {
-      (signalData as any).picture = pictureUrl; 
+      (signalData as any).picture = pictureUrl;
     }
 
-    const signalEntity = this.signalRepository.create(signalData);
-    const savedSignal = await this.signalRepository.save(signalEntity);
+    const signalEntity =
+      this.signalRepository.create(signalData);
 
-    const fullSignal = await this.signalRepository.findOne({
-      where: {
-        signal_id: savedSignal.signal_id, 
-      },
-      relations: ['user'],
-    });
+    const savedSignal =
+      await this.signalRepository.save(signalEntity);
 
-    if (fullSignal) {
-      let authorName = 'Un utilisateur';
+    // Récupération avec relation user
+    const fullSignal =
+      await this.signalRepository.findOne({
+        where: {
+          signal_id: savedSignal.signal_id,
+        },
+        relations: ['user'],
+      });
 
-    if (fullSignal) {
-  let authorName = 'Un utilisateur';
+    if (!fullSignal) {
+      throw new BadRequestException(
+        'Signalement introuvable après création',
+      );
+    }
 
-  if (fullSignal.anonyme) {
-    authorName = 'Anonyme';
-  } else if (fullSignal.user?.pseudo) {
-    authorName = fullSignal.user.pseudo;
-  } else if (userId) {
-    authorName = `Utilisateur #${userId}`; 
-  }
-  
-  try {
-    const targetUserId = fullSignal.anonyme ? null : userId;
+    // Nom auteur
+    let authorName = 'Un utilisateur';
 
-    const savedNotification = await this.notificationService.createSignalNotification(
-      fullSignal, 
-      authorName, 
-      targetUserId 
-    );
-    
-    // Notification Temps réel via WebSocket
-    this.gateway.server.emit('signal:new', {
-      signal: fullSignal,
-      notification: savedNotification,
-    });
-  } catch (notifError) {
-    console.error("Erreur lors de la gestion de la notification:", notifError);
-  }
-}
+    if (fullSignal.anonyme) {
+
+      authorName = 'Anonyme';
+
+    } else if (fullSignal.user?.pseudo) {
+
+      authorName = fullSignal.user.pseudo;
+
+    } else {
+
+      authorName = `Utilisateur #${userId}`;
+    }
+
+    try {
+
+      // Si anonyme → pas de userId
+      const targetUserId =
+        fullSignal.anonyme ? null : userId;
+
+      console.log('USER ID NOTIF =', targetUserId);
+
+      // Sauvegarde notification
+      const savedNotification =
+        await this.notificationService
+          .createSignalNotification(
+            fullSignal,
+            authorName,
+            targetUserId,
+          );
+
+      // WebSocket temps réel
+      this.gateway.server.emit('signal:new', {
+        signal: fullSignal,
+        notification: savedNotification,
+      });
+
+    } catch (notifError) {
+
+      console.error(
+        'Erreur notification:',
+        notifError,
+      );
     }
 
     return {
@@ -95,8 +128,12 @@ export class SignalService {
     };
 
   } catch (error) {
+
     console.error('[CreateSignal Error]:', error);
-    throw new BadRequestException("Erreur lors de la création du signalement");
+
+    throw new BadRequestException(
+      'Erreur lors de la création du signalement',
+    );
   }
 }
   async findAll(page: number = 1, limit: number = 10) {
@@ -185,6 +222,21 @@ export class SignalService {
       },
     };
   }
+
+  async getSignalsByUser(userId: number) {
+
+  return await this.signalRepository.find({
+    where: {
+      user: {
+    id: userId,
+  },
+    },
+    relations: ['user', 'categorie'],
+    order: {
+      created_at: 'DESC',
+    },
+  });
+}
 
   async updateSignal(signal_id: number,updateSignalDto: UpdateSignalDto,fichier?: Express.Multer.File,
   ): Promise<any> {

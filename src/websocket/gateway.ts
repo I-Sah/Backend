@@ -74,28 +74,50 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ─────────────────────────────────────────────
   // CONNEXION
   // ─────────────────────────────────────────────
-  async handleConnection(client: Socket) {
-    try {
-      const token = 
-      client.handshake.auth?.token || 
-      client.handshake.headers.authorization?.split(' ')[1] || 
-      client.handshake.query?.token;
-      if (!token) throw new UnauthorizedException();
+ async handleConnection(client: Socket) {
 
-      const payload = await this.jwtService.verifyAsync(token, {
+  try {
+
+    const token =
+      client.handshake.auth?.token ||
+      client.handshake.headers.authorization
+        ?.split(' ')[1] ||
+      client.handshake.query?.token;
+
+    if (!token) {
+      throw new UnauthorizedException();
+    }
+
+    const payload =
+      await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_SECRET || 'secret',
       });
 
-      // On attache l'utilisateur au socket pour éviter de lui redemander son pseudo
-      client.data.user = payload; 
-      console.log(`[WS] User ${payload.pseudo} connected`);
-      
-      client.emit('connected', { status: 'success', userId: payload.sub });
-    } catch (e) {
-      console.log('[WS] Connection refused: Invalid Token');
-      client.disconnect();
-    }
+    client.data.user = {
+      userId: payload.sub,
+      pseudo: payload.pseudo,
+      email: payload.email,
+      role: payload.role,
+    };
+
+    console.log(
+      `[WS] User ${payload.pseudo} connected`,
+    );
+
+    client.emit('connected', {
+      status: 'success',
+      userId: payload.sub,
+    });
+
+  } catch (e) {
+
+    console.log(
+      '[WS] Connection refused: Invalid Token',
+    );
+
+    client.disconnect();
   }
+}
 
   // ─────────────────────────────────────────────
   // DÉCONNEXION
@@ -109,43 +131,66 @@ export class Gateway implements OnGatewayConnection, OnGatewayDisconnect {
   // INSCRIPTION / IDENTIFICATION
   // ─────────────────────────────────────────────
   @SubscribeMessage('register')
-  handleRegister(
-    @MessageBody() data: { room: string },
-    @ConnectedSocket() client: Socket,
-  ) {
-    // Le pseudo vient maintenant du JWT sécurisé, pas de l'input utilisateur
-    const userPayload = client.data.user;
-    const { room } = data;
+handleRegister(
+  @MessageBody() data: { room: string },
+  @ConnectedSocket() client: Socket,
+) {
 
-    if (!room) {
-      client.emit('error', { message: 'La room est requise.' });
-      return;
-    }
+  const userPayload = client.data.user;
 
-    client.join(room);
+  const { room } = data;
 
-    const userInfo: UserInfo = {
-  socketId: client.id,
-  userId: Number(userPayload.sub),
-  username: userPayload.pseudo,
-  room,
-  joinedAt: new Date(),
-};
-    
-    this.connectedUsers.set(client.id, userInfo);
+  if (!room) {
 
-    // Envoi de l'historique et notifications non lues
-    const history = this.messageHistory.get(room) ?? [];
-    const unread = (this.notifications.get(userPayload.sub.toString()) ?? []).filter(n => !n.read);
+    client.emit('error', {
+      message: 'La room est requise.',
+    });
 
-    client.emit('registered', { user: userInfo, history, unreadNotifications: unread });
+    return;
+  }
 
-    this.server.to(room).except(client.id).emit('room:user-joined', {
-      userId: client.id,
+  client.join(room);
+
+  const userInfo: UserInfo = {
+    socketId: client.id,
+
+    // ✅ CORRECTION
+    userId: Number(userPayload.userId),
+
+    username: userPayload.pseudo,
+
+    room,
+
+    joinedAt: new Date(),
+  };
+
+  this.connectedUsers.set(client.id, userInfo);
+
+  const history =
+    this.messageHistory.get(room) ?? [];
+
+  const unread =
+    (
+      this.notifications.get(
+        userPayload.userId.toString(),
+      ) ?? []
+    ).filter((n) => !n.read);
+
+  client.emit('registered', {
+    user: userInfo,
+    history,
+    unreadNotifications: unread,
+  });
+
+  this.server
+    .to(room)
+    .except(client.id)
+    .emit('room:user-joined', {
+      userId: userPayload.userId,
       username: userPayload.pseudo,
       timestamp: new Date(),
     });
-  }
+}
   // ─────────────────────────────────────────────
   // ENVOI D'UN MESSAGE
   // ─────────────────────────────────────────────
@@ -247,42 +292,65 @@ if (targetUser) {
   }
 
   @SubscribeMessage('notifications:get')
-  handleGetNotifications(@ConnectedSocket() client: Socket) {
-    const userId = client.data.user.sub;
+handleGetNotifications(
+  @ConnectedSocket() client: Socket,
+) {
 
-const notifs =
-  this.notifications.get(userId.toString()) ?? [];
-    client.emit('notifications:list', notifs);
-  }
+  // ✅ CORRECTION
+  const userId = client.data.user.userId;
+
+  const notifs =
+    this.notifications.get(userId.toString()) ?? [];
+
+  client.emit('notifications:list', notifs);
+}
 
   @SubscribeMessage('notifications:read')
-  handleMarkRead(
-    @MessageBody() data: { ids: string[] },
-    @ConnectedSocket() client: Socket,
-  ) {
-    const userId = client.data.user.sub;
+handleMarkRead(
+  @MessageBody() data: { ids: string[] },
+  @ConnectedSocket() client: Socket,
+) {
 
-const notifs =
-  this.notifications.get(userId.toString()) ?? [];
-    const updated = notifs.map((n) =>
-      data.ids.includes(n.id) ? { ...n, read: true } : n,
-    );
-    this.notifications.set(client.id, updated);
-    client.emit('notifications:updated', updated);
-  }
+  const userId = client.data.user.userId;
+
+  const notifs =
+    this.notifications.get(userId.toString()) ?? [];
+
+  const updated = notifs.map((n) =>
+    data.ids.includes(n.id)
+      ? { ...n, read: true }
+      : n,
+  );
+
+  this.notifications.set(
+    userId.toString(),
+    updated,
+  );
+
+  client.emit(
+    'notifications:updated',
+    updated,
+  );
+}
 
   @SubscribeMessage('notifications:read-all')
-  handleMarkAllRead(@ConnectedSocket() client: Socket) {
-    const userId = client.data.user.sub.toString();
+handleMarkAllRead(
+  @ConnectedSocket() client: Socket,
+) {
 
-const notifs =
-  (this.notifications.get(userId) ?? []).map((n) => ({
-    ...n,
-    read: true,
-  }));
+  const userId =
+    client.data.user.userId.toString();
 
-this.notifications.set(userId, notifs);
-  }
+  const notifs =
+    (
+      this.notifications.get(userId) ?? []
+    ).map((n) => ({
+      ...n,
+      read: true,
+    }));
+
+  this.notifications.set(userId, notifs);
+}
 
   // ─────────────────────────────────────────────
   // INDICATEUR DE FRAPPE (typing)
