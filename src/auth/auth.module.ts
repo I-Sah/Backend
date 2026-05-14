@@ -33,5 +33,6 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
     FacebookStrategy,
     CloudinaryService
   ],
+  exports: [AuthService, CloudinaryService],
 })
 export class AuthModule {}

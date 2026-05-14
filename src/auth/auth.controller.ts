@@ -140,7 +140,7 @@ export class AuthController {
   @ApiOperation({ 
     summary: 'LISTE DES ÉVÉNEMENTS SOCKET.IO', 
     description: `
-    <b>Connexion:</b> ws://backend-rp0j.onrender.com?token=VOTRE_JWT
+    <b>Connexion:</b> ws:// backend-rp0j.onrender.com?token=VOTRE_JWT
 
     Creer un onglet Socket.io dans Postman et se connecter à l'URL ci-dessus en remplaçant VOTRE_JWT par un token valide obtenu après connexion.
     Ajouter le token dans Param dans postman
