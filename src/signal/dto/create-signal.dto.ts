@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsNumber, IsBoolean, IsNotEmpty, IsNumber, IsBoolean, IsNotEmpty } from 'class-validator';
-import { Transform } from 'class-transformer'; // 🚀 IMPORTANT
+import { IsEnum, IsOptional, IsNumber, IsBoolean, IsNotEmpty } from 'class-validator';
 import { Transform } from 'class-transformer'; // 🚀 IMPORTANT
 import { SignalStatus } from '../enums/signal_status.enum';
 import { SignalUrgence } from '../enums/urgence.enum';

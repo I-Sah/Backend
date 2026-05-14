@@ -12,31 +12,13 @@ export class NotificationService {
 
   // Dans notification.service.ts
 
-<<<<<<< HEAD
-async createSignalNotification(
-  signal: any,
-  authorName: string,
-  userId: number | null,
-) {
-
-  console.log('SAVE NOTIF USER ID =', userId);
-
-  const newNotif = this.notifRepo.create({
-    userId: userId,
-    type: 'signal_new',
-    title: `📍 Nouveau signalement : ${
-      signal.titre || 'Signalement'
-    }`,
-    body: `${authorName} a créé un nouveau signalement : ${signal.titre}`,
-=======
 async createSignalNotification(signal: any, authorName: string,userId: number | null) {
   const newNotif = this.notifRepo.create({
-    userId: userId, 
+    userId, 
     type: 'signal_new',
     title: `📍 Nouveau signalement : ${signal.titre || 'Signalement'}`,
     // 🔥 On utilise ici le 'authorName' dynamique transmis par le service
     body: `${authorName} a créé un nouveau signalement : ${signal.titre}`, 
->>>>>>> 83e6525fc3ff88408fff4c0c536c24cc7127a968
     read: false,
   });
 
@@ -51,18 +33,6 @@ async createSignalNotification(signal: any, authorName: string,userId: number | 
     });
   }
 
-<<<<<<< HEAD
-  async getNotificationsByUser(userId: number) {
-
-  return await this.notifRepo.find({
-    where: {
-      userId: userId,
-    },
-  });
-}
-
-=======
->>>>>>> 83e6525fc3ff88408fff4c0c536c24cc7127a968
   async getUnreadNotifications() {
     return await this.notifRepo.find({
       where: {
@@ -70,6 +40,14 @@ async createSignalNotification(signal: any, authorName: string,userId: number | 
       },
       order: {
         timestamp: 'DESC',
+      },
+    });
+  }
+
+  async getNotificationsByUser(userId: number) {
+    return await this.notifRepo.find({
+      where: {
+        userId: userId,
       },
     });
   }

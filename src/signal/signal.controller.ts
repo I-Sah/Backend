@@ -138,14 +138,18 @@ async create(
           format: 'binary',
           description: 'Nouvelle photo pour remplacer l\'ancienne (Optionnel)',
         },
-        latitude: { type: 'number' },
-        longitude: { type: 'number' },
-        signal_type: { type: 'string' },
+         titre: { type: 'string', default: 'Lampadaire cassé' },
+        latitude: { type: 'number', default: -18.1444 },
+      longitude: { type: 'number', default: 49.4223 },
         description: { type: 'string' },
-        priority: { type: 'string' },
+        priority: {type: 'enum',
+        enum: Object.values(SignalUrgence),
+        description: 'Priorité du signalement', },
         service_id: { type: 'number' },
         category_id: { type: 'number' },
-        signal_status: { type: 'string', description: 'Statut du signalement (PENDING, VALIDATED, etc.)' }
+        signal_status: { type: 'enum',
+        enum: Object.values(SignalStatus),
+        description: 'Statut du signalement', }
       },
     },
   })

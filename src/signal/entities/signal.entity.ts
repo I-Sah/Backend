@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { SignalStatus } from "../enums/signal_status.enum";
 import { SignalUrgence } from "../enums/urgence.enum";
 import { User } from "../../user/entities/user.entity";
@@ -45,7 +45,7 @@ export class Signal {
     @Column('timestamp', { nullable: true })
     created_at! : Date;
 
-    @Column('timestamp', { nullable: true })
+    @UpdateDateColumn({type: 'timestamp', nullable: true })
     updated_at! : Date;
 
     @Column('timestamp' , { nullable: true })
