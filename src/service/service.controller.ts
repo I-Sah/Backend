@@ -9,6 +9,7 @@ import { RolesGuard } from '../guard/roles.guard';
 import { JwtAuthGuard } from '../guard/jwt-auth.guard';
 import { UserRole } from '../user/entities/user.entity';
 
+
 @ApiTags('Service') // Organise Swagger par catégorie
 @Controller('service')
 export class ServiceController {
