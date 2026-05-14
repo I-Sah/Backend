@@ -4,12 +4,15 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Repository } from 'typeorm';
 import { Category } from './entities/category.entity';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Service } from '../service/entities/service.entity';
 
 @Injectable()
 export class CategoryService {
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+    @InjectRepository(Service)
+    private readonly serviceRepository: Repository<Service>
   ) {}
 
   async create(createCategoryDto: CreateCategoryDto) {
@@ -39,6 +42,22 @@ export class CategoryService {
       return listCategory;
     } catch (error) {
       throw new HttpException("Erreur lors de la récupération des catégories", 500);
+    }
+  }
+
+  async getListService(id: number){
+    try {
+      const listServiceOfCategory = await this.serviceRepository.find({
+        where: {categories: {id: id}}
+      })
+      return {
+        message: "Liste de service lier à une categorie",
+        data: listServiceOfCategory,
+        status: 200
+      }
+      
+    } catch (error) {
+      throw new HttpException("Erreur lors de la recuperartion de service",500)
     }
   }
 
