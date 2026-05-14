@@ -13,7 +13,7 @@ import { JwtAuthGuard } from '../guard/jwt-auth.guard';
 import { SignalUrgence } from './enums/urgence.enum';
 import { sign } from 'node:crypto';
 import { SignalStatus } from './enums/signal_status.enum';
-import { Express } from 'express';
+import 'multer';
 
 @ApiTags('Signalements')
 @Controller('signals')
