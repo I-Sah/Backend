@@ -5,6 +5,8 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { GatewayModule } from './websocket/gateway.module';
 import { ChatModule } from './chat/chat.module';
+import { CategoryModule } from './category/category.module';
+import { ServiceModule } from './service/service.module';
 import { SignalModule } from './signal/signal.module';
 
 @Module({
@@ -29,6 +31,8 @@ import { SignalModule } from './signal/signal.module';
     AuthModule,
     UserModule,
     ChatModule,
+    CategoryModule,
+    ServiceModule,
     SignalModule,
   ],
 })

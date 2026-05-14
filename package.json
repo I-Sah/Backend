@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "seed": "ts-node src/database/seed/index.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:debug": "nest start --debug --watch",
@@ -33,6 +34,7 @@
     "@nestjs/typeorm": "^11.0.1",
     "@nestjs/websockets": "^11.1.19",
     "@types/bcrypt": "^6.0.0",
+    "@types/multer": "^2.1.0",
     "@types/node": "^25.7.0",
     "axios": "^1.16.0",
     "bcrypt": "^6.0.0",
@@ -54,7 +56,8 @@
     "sharp": "^0.34.5",
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
-    "typeorm": "^0.3.28"
+    "typeorm": "^0.3.28",
+    "typeorm-extension": "^3.9.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

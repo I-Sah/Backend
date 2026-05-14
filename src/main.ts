@@ -18,6 +18,11 @@ async function bootstrap() {
   const doc = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, doc);
 
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true, // Très important pour que @Transform fonctionne
+    whitelist: true,
+  }));
+
   app.enableCors();
   
   const port = process.env.PORT || 5002;
