@@ -1,12 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DeepPartial, Repository } from 'typeorm';
 import { Signal } from './entities/signal.entity';
 import { CreateSignalDto } from './dto/create-signal.dto';
 import { UpdateSignalDto } from './dto/update-signal.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service'; // Ajuste le chemin
 import { Gateway } from '../websocket/gateway';
 import { NotificationService } from '../notification/notification.service';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class SignalService {
@@ -18,123 +19,131 @@ export class SignalService {
     private readonly notificationService: NotificationService,
   ) {}
 
-  async createSignal(
-  createSignalDto: CreateSignalDto,
-  userId: number,
-  fichier?: Express.Multer.File,
-) {
-  try {
-
-    let pictureUrl: string | null = null;
-
-    // Upload image
-    if (fichier) {
-      try {
-        const uploadResult =
-          await this.cloudinaryService.uploadFile(fichier);
-
-        pictureUrl = uploadResult.secure_url;
-
-      } catch (cloudinaryError) {
-        console.error(
-          '[Cloudinary Upload Warning]:',
-          cloudinaryError,
-        );
-      }
-    }
-
-    // Création du signalement
-    const signalData = {
-      ...createSignalDto,
-      userId,
-    };
-
-    if (pictureUrl) {
-      (signalData as any).picture = pictureUrl;
-    }
-
-    const signalEntity =
-      this.signalRepository.create(signalData);
-
-    const savedSignal =
-      await this.signalRepository.save(signalEntity);
-
-    // Récupération avec relation user
-    const fullSignal =
-      await this.signalRepository.findOne({
-        where: {
-          signal_id: savedSignal.signal_id,
-        },
-        relations: ['user'],
-      });
-
-    if (!fullSignal) {
-      throw new BadRequestException(
-        'Signalement introuvable après création',
-      );
-    }
-
-    // Nom auteur
-    let authorName = 'Un utilisateur';
-
-    if (fullSignal.anonyme) {
-
-      authorName = 'Anonyme';
-
-    } else if (fullSignal.user?.pseudo) {
-
-      authorName = fullSignal.user.pseudo;
-
-    } else {
-
-      authorName = `Utilisateur #${userId}`;
-    }
-
+    async createSignal(
+    createSignalDto: CreateSignalDto,
+    userId: number,
+    fichier?: Express.Multer.File,
+  ) {
     try {
 
-      // Si anonyme → pas de userId
-     const userIdFromToken = userId; // ne pas écraser
+      let pictureUrl: string | null = null;
 
-const targetUserId = fullSignal.anonyme ? null : userIdFromToken;
+      // Upload image
+      if (fichier) {
+        try {
+          const uploadResult =
+            await this.cloudinaryService.uploadFile(fichier);
 
-console.log('USER ID NOTIF =', targetUserId);
+          pictureUrl = uploadResult.secure_url;
 
-const savedNotification =
-  await this.notificationService.createSignalNotification(
-    fullSignal,
-    authorName,
-    targetUserId,
-  );
+        } catch (cloudinaryError) {
+          console.error(
+            '[Cloudinary Upload Warning]:',
+            cloudinaryError,
+          );
+        }
+      }
 
-      // WebSocket temps réel
-      this.gateway.server.emit('signal:new', {
-        signal: fullSignal,
-        notification: savedNotification,
+      // Création du signalement
+      const signalData = {
+        ...createSignalDto,
+        user: {id: userId},
+      };
+      
+      console.log(signalData);
+
+      if (pictureUrl) {
+        (signalData as any).picture = pictureUrl;
+      }
+
+      // Création du signalement
+      const signalEntity = this.signalRepository.create({
+        ...(createSignalDto as DeepPartial<Signal>),
+        user: { id: userId } as DeepPartial<User>,
+        ...(pictureUrl ? { picture: pictureUrl } : {}),
       });
 
-    } catch (notifError) {
+      console.log(signalEntity);
 
-      console.error(
-        'Erreur notification:',
-        notifError,
+      const savedSignal = await this.signalRepository.save(signalEntity);
+
+
+      // Récupération avec relation user
+      const fullSignal =  await this.signalRepository.findOne({
+          where: {
+            signal_id: savedSignal.signal_id,
+          },
+          relations: ['user'],
+        });
+
+      if (!fullSignal) {
+        throw new BadRequestException(
+          'Signalement introuvable après création',
+        );
+      }
+
+      // Nom auteur
+      let authorName = 'Un utilisateur';
+
+      if (fullSignal.anonyme) {
+
+        authorName = 'Anonyme';
+
+      } else if (fullSignal.user?.pseudo) {
+
+        authorName = fullSignal.user.pseudo;
+
+      } else {
+
+        authorName = `Utilisateur #${userId}`;
+      }
+
+      try {
+
+        // Si anonyme → pas de userId
+      const userIdFromToken = userId; // ne pas écraser
+
+  const targetUserId =  userIdFromToken;
+
+  console.log('USER ID NOTIF =', targetUserId);
+
+  const savedNotification =
+    await this.notificationService.createSignalNotification(
+      fullSignal,
+      authorName,
+      targetUserId,
+    );
+
+        // WebSocket temps réel
+        this.gateway.server.emit('signal:new', {
+          signal: fullSignal,
+          notification: savedNotification,
+        });
+
+      } catch (notifError) {
+
+        console.error(
+          'Erreur notification:',
+          notifError,
+        );
+      }
+
+      return {
+        message: 'Signalement créé avec succès',
+        signal: fullSignal,
+        status: 201,
+      };
+
+    } catch (error) {
+
+      console.error('[CreateSignal Error]:', error);
+
+      throw new BadRequestException(
+        'Erreur lors de la création du signalement',
       );
     }
-
-    return {
-      message: 'Signalement créé avec succès',
-      signal: fullSignal,
-      status: 201,
-    };
-
-  } catch (error) {
-
-    console.error('[CreateSignal Error]:', error);
-
-    throw new BadRequestException(
-      'Erreur lors de la création du signalement',
-    );
   }
-}
+
   async findAll(page: number = 1, limit: number = 10) {
 
     const skip = (page - 1) * limit;
@@ -223,18 +232,14 @@ const savedNotification =
   }
 
   async getSignalsByUser(userId: number) {
-
-  return await this.signalRepository.find({
-    where: {
-      user: {
-    id: userId,
-  },
-    },
-    relations: ['user', 'categorie'],
-    order: {
-      created_at: 'DESC',
-    },
-  });
+    console.log(userId);
+    const signal =  await this.signalRepository.find({
+      where: {user: {id: userId},},
+      order: {created_at:'DESC'},
+      relations: ['user']
+    });
+    
+    return signal;
 }
 
   async updateSignal(signal_id: number,updateSignalDto: UpdateSignalDto,fichier?: Express.Multer.File,

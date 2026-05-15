@@ -60,7 +60,7 @@ export class SignalController {
       anonyme: { type: 'boolean' },
       service_id: { type: 'number' },
     },
-    required: ['latitude', 'longitude', 'categorie_id', 'titre', 'service_id'],
+    required: ['latitude', 'longitude', 'categorie_id', 'titre'],
   },
 })
 @UseInterceptors(FileInterceptor('fichier'))
